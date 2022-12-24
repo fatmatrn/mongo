@@ -1,0 +1,245 @@
+1// ekranı temizleme
+cls
+2// products isminde DB oluşturalım
+use products
+3// hangi Db deyim ?
+db
+4// databaseleri göster
+show dbs
+5// electronics isminde collc. oluştur
+db.createCollection("electronics")
+6// mevcut collectionları göster
+db.getCollectionNames()
+7//aktif collectionı silelim
+db.electronics.drop()
+8// collectiona 1 tane döküman ekliyelim
+db.electronics.insertOne({"price":230 , "name" : "TV"})
+// Trick : collection oluşturmadan doğrudan insertOne() metodu ile data girilebilir.
+
+9// Birden fazla döküman girelim
+db.electronics.insertMany([ {"name":"ipod" , "price" : 111},{"name":"iphone14"},{"name":"Radio", "price":53,"tax":10}])
+//Trick : insertMany komudu ile data girilirken elemanlar "[]"ile depolanır ve her bir döküman "{}" içine eklenir ve "," ile ayrılır
+//Trick-2 : [ ve { ler karışmaması için , 3 eleman gireceksem -->
+// [{},{},{}] gibi boş bir yapı oluşturalım
+
+10// tek veya birden fazla döküman girelim
+db.electronics.insert({"name":"iron" , "tax":12})
+db.electronics.insert([{"price":123},{"name":"radio" , "tax":8}])
+//Trick : insert() depricate edilmiş method
+
+11// collectionı silelim
+db.electronics.drop()
+
+12// Database i silelim
+db.dropDatabase()
+
+13// bütün dökümanları okuyalım
+db.electronics.find()
+veya 
+db.electronics.find().pretty()
+
+14// ilk 2 döküman gelsin
+db.electronics.find().limit(2)
+
+15// Sadece 3.dökümanı istersem
+db.electronics.find().skip(2).limit(1)
+
+16// 5. dökümandan itibaren ilk 2 dökümanı getirelim
+db.electronics.find().skip(4).limit(2)
+
+17// ismi (name) TV olanları getirelim
+db.electronics.find({"name":"TV"})
+
+18// ismi TV ve price bilgisi 230 olan dökümanları getirin
+db.electronics.find({"name":"TV","price":230})
+veya
+db.electronics.find({$and:[{"name":"TV"},{"price":230}]})
+
+19// ismi TV veya Radio olan dökümanı getiriniz
+db.electronics.find({$or : [{"name" : "TV"},{"name": "Radio"}]})
+
+20// Radio ların sadece fiyatlarını görelim
+db.electronics.find({"name": "Radio"},{"price":1})
+//Trick : find 2 parametre alıyorsa 1.si filtre 2.si aksiyon 
+// --> find({filtre}, {aksiyon})
+
+21//yukardaki task in çıktısında id bilgisi gözükmesin
+db.electronics.find({"name":"Radio"},{"price":1 ,"_id":0})
+
+22//Dökümanların sadece price ve name bilgileri gelsin
+db.electronics.find({},{"price":1,"name":1,"_id":0})
+
+23//yukardaki soruyu price değerine göre sıralıyalım
+db.electronics.find({} , {"price":1,"name":1,"_id":0}).sort({"price":1})
+//Trick: sırt metodunda parametre olarak -1 girilirse büyükten küçüğe doğru sıralar, 1 olursa natural order yani küçükden büyüğe sıralar
+veya 
+db.electronics.find({} , {"price":1,"name":1,"_id":0}).sort({"price"})
+
+24//ilk dökümanı okumak istersem
+db.electronics.find().limit(1)
+// veya
+db.electronics.findOne()
+
+25// TV leri azalan price göre getirelim
+db.electronics.find({"name":"TV"},{"name":1,"price":1,"_id":0}).sort({"price":-1})
+
+NOTE:
+
+Comparison Operators
+    Eşitlik     ==> $eq
+    Küçüktür    ==> $lt
+    Büyüktür    ==> $gt
+    Küçük eşit  ==> $lte
+    Büyük eşit  ==> $gte
+    Eşit değil  ==> $ne
+    Dizi içinde ==> $in
+    Dizi değil  ==> $nin
+
+26 // price' ı 230 olan TV yi getirelim
+db.electronics.find({"name":"TV","price":230})
+
+27// price'ı 95 olan dökümanı bulun
+db.electronics.find({"price":95})
+// veya 
+db.electronics.find({"price" : {$eq:95}})
+
+28// fiyatı 300 den az veya eşit olan dökümanları bulun
+db.electronics.find({"price":{$lte:300}})
+
+29// yukardaki soruda id çıktıda gözükmesin
+db.electronics.find({"price" : {$lte:300}},{"_id":0})
+
+30// price'ı 100 den büyük veya eşit olan dökümanları getirin
+db.electronics.find({"price":{$gte:100}})
+
+31// price'ı 230, 75 , 120 den biri olan dökümanları getirin
+db.electronics.find({$or:[{"price":230},{"price":75},{"price":120}]})
+// veya 
+db.electronics.find({"price" : {$in:[230, 75, 120]}})
+
+32// price değeri 230, 75, 120 olmayan dökümanları getirin
+db.electronics.find({"price" : {$nin:[230, 75, 120]}})
+
+//=================================================================
+//            findOneAndUpdate - findOneAndReplace
+//=================================================================
+
+// A - findOneAndReplace() 
+//----------------------------
+//   1-) belirtilen koşullara uyan ilk sorguyu bulur ve degistirir. 
+//   2-) Komut icerisinde belirtilen kisimlari guncellerken bos birakilan 
+//       alanlari kaldirir. (API'lerdeki PUT metoduna benzetilebilir).
+//   3-) Islem sonunda ilgili dokumanin guncellenmemiş halini gosterir.yani ben bunu değiştirdim diye haber veriyor
+
+//       
+// B - findOneAndUpdate() 
+//----------------------------
+///  1-) Belirtilen koşullara uyan ilk sorguyu bulur ve degistirir. 
+//   2-) Komut icerisinde belirtilen kisimlari guncellerken bos birakilan 
+//       alanlari modifiye etmez  (API'lerdeki PATCH metoduna benzetilebilir).
+//   3-) komutun kosul kismindan sonra degislikileri gerceklestirmek icin bir 
+//       atomic operator kullanilir. ($set (direk değer verilirse), $inc(arttırma azaltma), $mul (çarpma)vb.)
+//   4)  Islem sonunda ilgili dokumanin guncellenMEmiş halini gosterir.
+
+//=================================================================
+// ÖNEMLİ : !!!  bu 2 kod çalıştığında dökümanın update olmamış hali ekrana gelir.
+
+33// Fiyatı 200 den az olan dökümanı bulup name bilgisini "Car" olarak, price bilgisini de 2000 olarak değiştirin
+db.electronics.findOneAndReplace({"price":{$lt:200}},{"name":"Car" , "price":2000})
+
+34// Price bilgisi 100 den büyük olan dökümanlar içinde price bilgisi en düşük olanın ismini "En Ucuz" olarak değiştirin
+db.electronics.findOneAndReplace({"price":{$gt:100}} , {"name":"En Ucuz"} , {sort:{"price":1}})
+
+// price 'ı en yüksek deseydi : 
+db.electronics.findOneAndReplace({"price":{$gt:100}} , {"name":"En Ucuz"} , {sort:{"price":-1}})
+// Trick : ( {filtre}, {update}, {opsiyonel})
+
+35// price bilgisi 100 den büyük olan dökümanlar içinde fiyatı en büyük olanın ismini "En Pahalı" olarak değiştirin
+db.electronics.findOneAndUpdate({"price" : {$gt:100}} , {$set:{"name":"En Pahalı"}} , {sort:{"price":-1}})
+
+36// Price bilgisi 100 en küçük olan dökümanın ismini "Güncellendi" olarak değiştirin, diğer field lar silinmesin
+db.electronics.findOneAndUpdate({"price": {$lt: 100}}, {$set : {"name": "guncellendi"}} )
+
+37// Fiyatı 100 den küçük olan dökümanlar içinde fiyatı en küçük olanın ismini "En Ucuz" yapalım
+db.electronics.findOneAndUpdate({"price":{$lt:100}},{$set:{"name":"En Ucuz"}},{sort:{"price":1}})
+
+38// Fiyatı 230 a eşit olan dökümanı bulup  fiyatını 250 yapıp ekran çıktısını GÜNCEL haliyle basınız
+db.electronics.findOneAndUpdate({"price":{$eq:230}} , {$set:{"price":250}} , {returnNewDocument : true})
+
+39//Fiyatı 230 olan dökümanı bulup name bilgisini "Gold", fiyatını 250 yapıp konsol çıktısında update edilmiş sonucu gösterelim, eğer böyle bir döküman yoksa yeni oluşturalım
+db.electronics.findOneAndUpdate({"price":{$eq:230}} , {$set:{"price":250,"name":"Gold"}} , {returnNewDocument:true ,upsert:true })
+
+//Açıklama : çıktının güncel dökümanı göstermesi için returnNewDocument değerini true yaptık, filtre ile aranan döküman yoksa yeni oluşturulması için upsert değerini true yaptık
+
+40// Birden fazla dökümanı aynı anda  değiştirmek istersem ?
+//Fiyatı 300 den düşük olan bütün dökümanların ismini "Woww" yapalım
+db.electronics.update({"price":{$lt:300}} , {$set:{"name":"Woww"}} , {multi:true})
+//veya 
+db.electronics.updateMany({"price":{$lt:300}},{$set:{"name":"Wow"}})
+// Açıklama : updateMany() metodu güncel olduğu için , depricated edilen update() metodundaki gibi "multi:true" yazmamıza gerek kalmadı.
+
+//==============================
+
+// Bir dökümanı nasıl silebiliriz ?
+// ==> deleteOne() / deleteMany() / remove()
+
+41// ismi "En Ucuz" olan dökümanı siliniz
+db.electronics.deleteOne({"name":"En Ucuz"})
+
+42// Olmayan bir dökümanı silmeye çalışırsam
+db.electronics.deleteMany({"name":"XYZ"})
+//Açıklama : deletedCount: 0 değerini verir
+
+43// bütün dökümanı silmek istersem
+db.electronics.deleteMany({})
+//2.yol : 
+db.electronics.delete()
+//3.yol
+db.electronics.remove({})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
